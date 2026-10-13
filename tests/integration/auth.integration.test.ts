@@ -69,4 +69,43 @@ describe.skipIf(!hasSupabaseCredentials)("Supabase: cuentas y aislamiento", () =
     expect(error).toBeNull();
     expect(data).toEqual([]);
   });
+
+  // RLS evita que B lea lo de A, pero por sí sola no evita que B
+  // *referencie* un id de A en una fila propia — eso lo cierra la FK
+  // compuesta (id, user_id) de la migración 0004.
+  it("una usuaria no puede crear un pedido que apunte al ciclo de otra", async () => {
+    const { data: cycleB } = await userB.client
+      .from("cycles")
+      .insert({ user_id: userB.userId, name: "Ciclo de B (ajeno)" })
+      .select("id")
+      .single();
+    const { data: customerA } = await userA.client
+      .from("customers")
+      .insert({ user_id: userA.userId, name: "Clienta de A" })
+      .select("id")
+      .single();
+
+    const { error } = await userA.client.from("orders").insert({
+      user_id: userA.userId,
+      cycle_id: cycleB!.id,
+      customer_id: customerA!.id,
+    });
+
+    expect(error).not.toBeNull();
+  });
+
+  it("una usuaria no puede elegir como ciclo activo uno que no es suyo", async () => {
+    const { data: cycleB } = await userB.client
+      .from("cycles")
+      .insert({ user_id: userB.userId, name: "Otro ciclo de B" })
+      .select("id")
+      .single();
+
+    const { error } = await userA.client
+      .from("profiles")
+      .update({ active_cycle_id: cycleB!.id })
+      .eq("id", userA.userId);
+
+    expect(error).not.toBeNull();
+  });
 });
