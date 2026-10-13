@@ -26,13 +26,29 @@ Flujo central: Clienta → Pedido → Pago → Entrega → Saldo → Ganancia �
 - Prioridad: teléfono, después tablet, después desktop.
 - El botón "+ Nuevo pedido" siempre visible. Crear un pedido con la menor cantidad de pasos posible.
 
+## Idioma
+- Código en inglés: rutas, funciones, variables, tablas y columnas, valores de enums, archivos, carpetas, componentes y descripciones de tests.
+- Interfaz en castellano rioplatense con "vos": etiquetas, botones, estados vacíos, mensajes de error, mensajes de WhatsApp y textos de la landing.
+- Los enums se traducen en un solo lugar: `src/ui/labels.ts`. Por ejemplo `pending_delivery` se muestra como "Pendiente de entregar".
+
 ## Arquitectura
-- Separar entidades, cálculos, persistencia y UI, sin abstracciones de más.
-- Los cálculos son funciones puras con tests.
-- La persistencia va detrás de una capa propia, para poder pasar de guardado local a un backend sin reescribir la UI.
+- Next.js 15 (App Router) + TypeScript + Tailwind CSS v4. Landing pública en `/`, app privada en `/app`.
+- Supabase: Postgres con Row Level Security por `user_id`, y Supabase Auth con email y contraseña (sesión en cookies, vía `@supabase/ssr`). No programar autenticación a mano.
+- Lectura de datos en Server Components; escritura en Server Actions con `revalidatePath`. Sin librería de datos del lado del navegador.
+- Separar entidades, cálculos, persistencia y UI, sin abstracciones de más: `src/domain/` (tipos, cálculos, validaciones) no importa nada de `src/data/`, `src/actions/` ni `src/ui/`.
+- Los cálculos son funciones puras con tests, en `src/domain/calculations.ts`. Las validaciones de Zod viven en `src/domain/validations.ts` y las usan tanto los formularios como las Server Actions.
+- La app requiere conexión. PWA instalable con manifest estático declarado solo en el layout de `/app`, y service worker (`@serwist/next`) que cachea únicamente archivos estáticos, nunca navegaciones ni datos.
+- El login vive en `/app/login`, dentro del alcance del manifest, para que la app instalada no mande a la usuaria al navegador cuando se le vence la sesión.
+
+## Comandos
+- Instalar: `npm install`
+- Desarrollo: `npm run dev`
+- Tests: `npm test` · de punta a punta: `npx playwright test`
+- Tipos y lint: `npx tsc --noEmit` · `npm run lint`
+- Build: `npm run build`
+- Base de datos: migraciones SQL versionadas en `supabase/migrations/`
 
 ## Forma de trabajo
 - Cambios chicos y revisables. Antes de un cambio grande de arquitectura, explicar por qué y esperar aprobación.
 - Antes de dar algo por terminado: correr los tests y el build, y mostrar el resultado.
 - Al cerrar cada bloque: qué cambió, archivos modificados, riesgos y cómo probarlo a mano desde el celular.
-- Cuando se definan los comandos del proyecto (instalar, desarrollo, tests, build), agregarlos acá en una sección "Comandos".
